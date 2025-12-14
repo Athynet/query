@@ -252,13 +252,7 @@ func ProcessCSVRecords(records [][]string, signFunc func([]byte) (string, error)
 	}
 
 	// 检查是否已有sign-String列
-	hasSignColumn := false
-	for _, col := range header {
-		if col == "sign-String" {
-			hasSignColumn = true
-			break
-		}
-	}
+	hasSignColumn := slices.Contains(header, "sign-String")
 
 	// 如果没有sign-String列，添加到第二列位置
 	if !hasSignColumn {
