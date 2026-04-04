@@ -4,8 +4,10 @@
 
 ## 功能特点
 
-- 🔹 逐行读取CSV文件，对第一列数据进行RSA-PSS签名
-- 🔹 支持Java生成的PKCS#8格式私钥
+- 🔹 逐行读取CSV文件，对第一列数据进行签名
+- 🔹 支持多种签名算法：RSA-PSS和SM2
+- 🔹 支持Java生成的PKCS#8格式RSA私钥
+- 🔹 支持SM2私钥格式
 - 🔹 并发处理，充分利用多核CPU
 - 🔹 实时显示执行进度
 - 🔹 流式处理，支持大规模数据（已测试40万行）
@@ -14,8 +16,10 @@
 ## 技术栈
 
 - **语言**：Go 1.20+
-- **算法**：RSA-PSS + SHA256
-- **依赖**：标准库，无第三方依赖
+- **算法**：RSA-PSS + SHA256, SM2
+- **依赖**：
+  - 标准库
+  - github.com/tjfoc/gmsm (用于SM2签名)
 
 ## 使用方法
 
@@ -28,11 +32,14 @@ go build -o signcsv.exe
 ### 运行程序
 
 ```bash
-# 基本用法
+# 使用RSA-PSS算法（默认）
 .\signcsv.exe -i input.csv -o output.csv -k private.pem
 
 # 指定并发数
 .\signcsv.exe -i input.csv -o output.csv -k private.pem -c 8
+
+# 使用SM2算法
+.\signcsv.exe -i input.csv -o output.csv -k sm2.pem -a sm2
 ```
 
 ### 命令行参数
@@ -41,12 +48,14 @@ go build -o signcsv.exe
 |------|------|--------|
 | `-i` | 输入CSV文件路径 | `test.csv` |
 | `-o` | 输出CSV文件路径 | `output.csv` |
-| `-k` | RSA私钥文件路径 | `private.pem` |
+| `-k` | 私钥文件路径 | `private.pem` |
 | `-c` | 并发处理的goroutine数量 | `4` |
+| `-a` | 签名算法 (rsa-pss, sm2) | `rsa-pss` |
 
 ## 私钥格式要求
 
-工具只支持Java生成的**PKCS#8格式**私钥，私钥文件应满足：
+### RSA私钥
+工具支持Java生成的**PKCS#8格式**RSA私钥，私钥文件应满足：
 
 ```
 -----BEGIN PRIVATE KEY-----
@@ -54,7 +63,7 @@ MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQ...
 -----END PRIVATE KEY-----
 ```
 
-### 生成私钥（Java）
+#### 生成RSA私钥（Java）
 
 ```bash
 # 使用Java keytool生成密钥库
@@ -62,6 +71,25 @@ keytool -genkeypair -alias test -keyalg RSA -keysize 2048 -storetype PKCS12 -key
 
 # 使用OpenSSL导出PKCS#8私钥
 openssl pkcs12 -in keystore.p12 -nodes -nocerts -out private.pem
+```
+
+### SM2私钥
+工具支持**SM2格式**私钥，私钥文件应满足：
+
+```
+-----BEGIN PRIVATE KEY-----
+MIGTAgEAMBMGByqGSM49AgEGCCqBHM9VAYItBHkwdwIBAQQg...
+-----END PRIVATE KEY-----
+```
+
+#### 生成SM2私钥
+
+```bash
+# 使用OpenSSL生成SM2私钥
+openssl ecparam -name sm2p256v1 -genkey -out sm2.key
+
+# 转换为PEM格式
+openssl pkcs8 -topk8 -inform PEM -in sm2.key -outform PEM -nocrypt -out sm2.pem
 ```
 
 ## 模板说明
@@ -111,6 +139,8 @@ query/
 - `ProcessCSVStream()`：流式处理CSV文件
 - `LoadPrivateKey()`：加载RSA私钥
 - `RSA_PSS_Sign()`：执行RSA-PSS签名
+- `LoadSM2PrivateKey()`：加载SM2私钥
+- `SM2_Sign()`：执行SM2签名
 
 ### 扩展建议
 

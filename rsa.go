@@ -10,6 +10,8 @@ import (
 	"encoding/pem"
 	"fmt"
 	"os"
+
+	"github.com/tjfoc/gmsm/sm2"
 )
 
 // LoadPrivateKey 从PEM文件加载私钥，只支持Java PKCS#8格式
@@ -49,6 +51,44 @@ func RSA_PSS_Sign(privateKey *rsa.PrivateKey, data []byte) (string, error) {
 	}
 
 	signature, err := rsa.SignPSS(rand.Reader, privateKey, crypto.SHA256, hashed[:], pssOptions)
+	if err != nil {
+		return "", err
+	}
+
+	return base64.StdEncoding.EncodeToString(signature), nil
+}
+
+// LoadSM2PrivateKey 从PEM文件加载SM2私钥
+func LoadSM2PrivateKey(filename string) (*sm2.PrivateKey, error) {
+	file, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	block, _ := pem.Decode(file)
+	if block == nil {
+		return nil, fmt.Errorf("failed to decode PEM block")
+	}
+
+	// 尝试解析SM2私钥
+	privateKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("无法解析SM2私钥: %w", err)
+	}
+
+	// 验证是SM2私钥
+	sm2Key, ok := privateKey.(*sm2.PrivateKey)
+	if !ok {
+		return nil, fmt.Errorf("不是SM2私钥")
+	}
+
+	return sm2Key, nil
+}
+
+// SM2_Sign 使用SM2算法对数据进行签名
+func SM2_Sign(privateKey *sm2.PrivateKey, data []byte) (string, error) {
+	// SM2签名
+	signature, err := privateKey.Sign(rand.Reader, data, nil)
 	if err != nil {
 		return "", err
 	}
