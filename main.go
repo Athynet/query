@@ -11,6 +11,7 @@ func main() {
 	var (
 		inputFile   = flag.String("i", "test.csv", "输入CSV文件路径")
 		outputFile  = flag.String("o", "output.csv", "输出CSV文件路径")
+		keyFile     = flag.String("k", "private.pem", "私钥文件路径")
 		concurrency = flag.Int("c", 4, "并发处理的goroutine数量")
 		algorithm   = flag.String("a", "rsa-pss", "签名算法 (rsa-pss, sm2)")
 	)
@@ -34,17 +35,33 @@ func main() {
 		}
 	}
 
-	// 创建签名函数
+	// 加载私钥并创建签名函数
 	var signFunc func([]byte) (string, error)
 	if *algorithm == "rsa-pss" {
-		// 创建默认RSA-PSS签名函数
+		// 加载RSA私钥
+		privateKey, err := LoadPrivateKey(*keyFile)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "加载私钥失败: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("已加载RSA私钥: %s\n", *keyFile)
+
+		// 创建RSA-PSS签名函数
 		signFunc = func(data []byte) (string, error) {
-			return "default-rsa-signature", nil
+			return RSA_PSS_Sign(privateKey, data)
 		}
 	} else if *algorithm == "sm2" {
-		// 创建默认SM2签名函数
+		// 加载SM2私钥
+		sm2Key, err := LoadSM2PrivateKey(*keyFile)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "加载SM2私钥失败: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("已加载SM2私钥: %s\n", *keyFile)
+
+		// 创建SM2签名函数
 		signFunc = func(data []byte) (string, error) {
-			return "default-sm2-signature", nil
+			return SM2_Sign(sm2Key, data)
 		}
 	}
 
